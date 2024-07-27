@@ -104,7 +104,32 @@ class ParagraphDataset(Dataset):
             'features': features,
             'labels': torch.tensor(label, dtype=torch.long)
         }
+class ParagraphQualityScorer(nn.Module):
+    def __init__(self):
+        super(ParagraphQualityScorer, self).__init__()
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.dropout = nn.Dropout(0.1)
+        self.fc = nn.Linear(768, 1)
+        self.sigmoid = nn.Sigmoid()
 
+    def forward(self, input_ids, attention_mask):
+        _, pooled_output = self.bert(input_ids=input_ids, attention_mask=attention_mask, return_dict=False)
+        x = self.dropout(pooled_output)
+        x = self.fc(x)
+        return self.sigmoid(x)
+
+def classify_paragraph(model, tokenizer, paragraph):
+    inputs = tokenizer(paragraph, return_tensors="pt", truncation=True, padding=True, max_length=512)
+    with torch.no_grad():
+        score = model(inputs['input_ids'], inputs['attention_mask']).item()
+    
+    if score < 0.33:
+        return f"Low Quality (Score: {score:.2f})"
+    elif score < 0.67:
+        return f"Medium Quality (Score: {score:.2f})"
+    else:
+        return f"High Quality (Score: {score:.2f})"
+        
 def train_model(model, train_loader, val_loader, epochs=10, lr=2e-5):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
