@@ -1,13 +1,16 @@
 import os
 from flask import Flask, request, jsonify
-import torch
+from flask_cors import CORS
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
 
 app = Flask(__name__)
+CORS(app)
 
-# Load model and tokenizer
-model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
-tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
+
+model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
 @app.route('/')
 def home():
@@ -19,11 +22,16 @@ def classify_paragraph():
     paragraph = data['paragraph']
     
     inputs = tokenizer(paragraph, return_tensors="pt", truncation=True, padding=True)
-    outputs = model(**inputs)
-    prediction = torch.nn.functional.softmax(outputs.logits, dim=-1)
-    label = "High Quality" if prediction[0][1] > prediction[0][0] else "Low Quality"
+    with torch.no_grad():
+        outputs = model(**inputs)
     
-    return jsonify({"quality": label, "confidence": float(max(prediction[0]))})
+    probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
+    predicted_class = torch.argmax(probabilities).item()
+    
+    quality = "High" if predicted_class == 1 else "Low"
+    confidence = probabilities[0][predicted_class].item()
+    
+    return jsonify({"quality": quality, "confidence": confidence})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
