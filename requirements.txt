@@ -1,7 +1,5 @@
-torch==2.4.0+cpu
-torchvision==0.19.0+cpu
--f https://download.pytorch.org/whl/torch_stable.html
-transformers
-Flask
-gunicorn
-Flask-Cors
+torch==2.1.0
+transformers==4.33.0
+Flask==2.3.3
+gunicorn==21.2.0
+Flask-Cors==4.0.0
