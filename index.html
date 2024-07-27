@@ -400,13 +400,11 @@
         function isInViewport(element) {
             const rect = element.getBoundingClientRect();
             return (
-                rect.top >= 0 &&
-                rect.left >= 0 &&
-                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-                rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+                rect.top <= (window.innerHeight || document.documentElement.clientHeight) &&
+                rect.bottom >= 0
             );
         }
-
+    
         function handleScrollAnimations() {
             document.querySelectorAll('.section').forEach((section) => {
                 if (isInViewport(section)) {
@@ -414,25 +412,28 @@
                 }
             });
         }
-
+    
+        // Call handleScrollAnimations on page load
+        document.addEventListener('DOMContentLoaded', handleScrollAnimations);
+    
+        // Call handleScrollAnimations on scroll and resize events
         window.addEventListener('scroll', handleScrollAnimations);
         window.addEventListener('resize', handleScrollAnimations);
-        handleScrollAnimations();
-
+    
         function openModal(modalName) {
             document.getElementById(modalName + 'Modal').style.display = 'block';
         }
-
+    
         function closeModal(modalName) {
             document.getElementById(modalName + 'Modal').style.display = 'none';
         }
-
+    
         window.onclick = function(event) {
             if (event.target.className === 'modal') {
                 event.target.style.display = 'none';
             }
         }
-
+    
         async function classifyParagraph() {
             const paragraph = document.getElementById('paragraph-input').value;
             const resultDiv = document.getElementById('result');
@@ -441,9 +442,9 @@
                 resultDiv.textContent = 'Please enter a paragraph to see how good you are!';
                 return;
             }
-
+    
             resultDiv.textContent = 'Classifying...';
-
+    
             try {
                 const response = await fetch('https://paragraphs-fae6f44ce5fe.herokuapp.com/classify', {
                     method: 'POST',
@@ -452,11 +453,11 @@
                     },
                     body: JSON.stringify({ paragraph }),
                 });
-
+    
                 if (!response.ok) {
                     throw new Error('API request failed');
                 }
-
+    
                 const data = await response.json();
                 resultDiv.textContent = `Paragraph Quality: ${data.quality}`;
             } catch (error) {
