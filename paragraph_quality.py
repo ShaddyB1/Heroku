@@ -60,7 +60,7 @@ class ParagraphQualityClassifier(nn.Module):
         super(ParagraphQualityClassifier, self).__init__()
         self.bert = BertModel.from_pretrained('bert-base-uncased')
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(768 + 5, 256)  # 768 from BERT, 5 from custom features
+        self.fc1 = nn.Linear(768 + 5, 256)  
         self.fc2 = nn.Linear(256, 2)
         self.relu = nn.ReLU()
 
