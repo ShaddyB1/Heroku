@@ -50,6 +50,15 @@
             color: var(--highlight-color);
             animation: logoAnimation 3s infinite alternate;
         }
+        @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.interactive-icon {
+    animation: pulse 2s infinite;
+}
 
         .tooltip {
         position: absolute;
