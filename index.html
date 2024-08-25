@@ -51,6 +51,29 @@
             animation: logoAnimation 3s infinite alternate;
         }
 
+        .tooltip {
+        position: absolute;
+        background-color: var(--accent-color);
+        color: var(--bg-color);
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        pointer-events: none;
+        white-space: nowrap;
+        z-index: 100;
+    }
+
+    .project-card:hover .tooltip {
+        opacity: 1;
+        transform: translateY(-10px);
+    }
+
+    .project-card {
+        position: relative;
+    }
+
         @keyframes logoAnimation {
             0% { transform: scale(1); }
             100% { transform: scale(1.1); }
@@ -317,12 +340,14 @@
             <div class="projects">
                 <div class="project-card">
                     <h3>AI-Driven Paragraph Quality Classifier <span class="interactive-icon" onclick="openModal('paragraphClassifier')">⚙️</span></h3>
+                    <div class="tooltip">Click the gear to try it out!</div>
                     <p>A machine learning model using PyTorch to classify paragraph quality, incorporating BERT for natural language processing.</p>
                     <p><strong>Technologies:</strong> PyTorch, BERT, spaCy, Optuna, Matplotlib, Seaborn</p>
                     <p><a href="https://github.com/ShaddyB1/praragraph_quality_validator" target="_blank" style="color: var(--highlight-color);">View on GitHub</a></p>
                 </div>
                 <div class="project-card">
                     <h3>Cryptography Tool <span class="interactive-icon" onclick="openModal('cryptoTool')">⚙️</span></h3>
+                    <div class="tooltip">Click the gear to try it out!</div>
                     <p>A Python-based cryptography tool implementing various cipher methods including Caesar, Vigenère, Playfair, Rail Fence, and Atbash.</p>
                     <p><strong>Technologies:</strong> Python, cryptography algorithms, unit testing</p>
                     <p><a href="https://github.com/ShaddyB1/Cypher_Unload" target="_blank" style="color: var(--highlight-color);">View on GitHub</a></p>
