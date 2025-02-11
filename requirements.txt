@@ -1,4 +1,5 @@
-https://download.pytorch.org/whl/cpu/torch-2.1.0%2Bcpu-cp311-cp311-linux_x86_64.whl
+torch==2.1.0+cpu
+-f https://download.pytorch.org/whl/cpu/torch_stable.html
 transformers==4.33.0
 Flask==2.3.3
 gunicorn==21.2.0
