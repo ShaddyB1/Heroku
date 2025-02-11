@@ -1,18 +1,18 @@
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import torch
+from transformers import pipeline
 
 app = Flask(__name__)
 CORS(app)
 
-# Load model and tokenizer
+# Initialize the pipeline once at startup
 try:
-    model_name = "distilbert-base-uncased-finetuned-sst-2-english"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
-    model.eval()  # Set the model to evaluation mode
+    classifier = pipeline(
+        'sentiment-analysis',
+        model='distilbert-base-uncased-finetuned-sst-2-english',
+        device=-1  # Force CPU usage
+    )
 except Exception as e:
     print(f"Error loading model: {str(e)}")
 
@@ -23,30 +23,31 @@ def home():
 @app.route('/classify', methods=['POST'])
 def classify_paragraph():
     try:
+        # Get data from request
         data = request.json
         if not data or 'paragraph' not in data:
             return jsonify({"error": "No paragraph provided"}), 400
 
         paragraph = data['paragraph']
         
-        inputs = tokenizer(paragraph, return_tensors="pt", truncation=True, padding=True)
-        with torch.no_grad():
-            outputs = model(**inputs)
+        # Perform classification
+        result = classifier(paragraph)[0]
         
-        probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
-        predicted_class = torch.argmax(probabilities).item()
+        # Convert sentiment to quality rating
+        quality = "High" if result['label'] == 'POSITIVE' else "Low"
+        confidence = float(result['score'])
         
-        quality = "High" if predicted_class == 1 else "Low"
-        confidence = float(probabilities[0][predicted_class].item())  # Convert to float for JSON serialization
-        
+        # Return result
         return jsonify({
             "quality": quality,
             "confidence": confidence,
             "paragraph": paragraph
         })
     except Exception as e:
+        print(f"Error in classification: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    # Get port from environment variable or use default
+    port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
