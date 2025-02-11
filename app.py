@@ -1,20 +1,34 @@
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from transformers import pipeline
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
 
 app = Flask(__name__)
 CORS(app)
 
-# Initialize the pipeline once at startup
-try:
-    classifier = pipeline(
-        'sentiment-analysis',
-        model='distilbert-base-uncased-finetuned-sst-2-english',
-        device=-1  # Force CPU usage
-    )
-except Exception as e:
-    print(f"Error loading model: {str(e)}")
+# Global variables for model and tokenizer
+model = None
+tokenizer = None
+
+def load_model():
+    """Load model and tokenizer"""
+    global model, tokenizer
+    try:
+        model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        # Ensure model is in evaluation mode
+        model.eval()
+        return True
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return False
+
+@app.before_first_request
+def initialize():
+    """Initialize model before first request"""
+    load_model()
 
 @app.route('/')
 def home():
@@ -22,32 +36,50 @@ def home():
 
 @app.route('/classify', methods=['POST'])
 def classify_paragraph():
+    global model, tokenizer
+    
+    # Check if model is loaded
+    if model is None or tokenizer is None:
+        if not load_model():
+            return jsonify({"error": "Model not initialized"}), 500
+
     try:
-        # Get data from request
-        data = request.json
+        # Get and validate input
+        data = request.get_json()
         if not data or 'paragraph' not in data:
             return jsonify({"error": "No paragraph provided"}), 400
 
         paragraph = data['paragraph']
         
-        # Perform classification
-        result = classifier(paragraph)[0]
+        # Tokenize and prepare input
+        inputs = tokenizer(paragraph, 
+                         return_tensors="pt", 
+                         truncation=True, 
+                         padding=True, 
+                         max_length=512)
         
-        # Convert sentiment to quality rating
-        quality = "High" if result['label'] == 'POSITIVE' else "Low"
-        confidence = float(result['score'])
+        # Make prediction
+        with torch.no_grad():
+            outputs = model(**inputs)
+            probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
+            predicted_class = torch.argmax(probabilities).item()
         
-        # Return result
+        # Prepare response
+        quality = "High" if predicted_class == 1 else "Low"
+        confidence = float(probabilities[0][predicted_class].item())
+        
         return jsonify({
             "quality": quality,
             "confidence": confidence,
             "paragraph": paragraph
         })
+
     except Exception as e:
-        print(f"Error in classification: {str(e)}")
+        print(f"Error during classification: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # Get port from environment variable or use default
+    # Use the port provided by Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
+    
