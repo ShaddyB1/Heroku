@@ -7,10 +7,14 @@ import torch
 app = Flask(__name__)
 CORS(app)
 
-
-model_name = "distilbert-base-uncased-finetuned-sst-2-english"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSequenceClassification.from_pretrained(model_name)
+# Load model and tokenizer
+try:
+    model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    model.eval()  # Set the model to evaluation mode
+except Exception as e:
+    print(f"Error loading model: {str(e)}")
 
 @app.route('/')
 def home():
@@ -18,20 +22,30 @@ def home():
 
 @app.route('/classify', methods=['POST'])
 def classify_paragraph():
-    data = request.json
-    paragraph = data['paragraph']
-    
-    inputs = tokenizer(paragraph, return_tensors="pt", truncation=True, padding=True)
-    with torch.no_grad():
-        outputs = model(**inputs)
-    
-    probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
-    predicted_class = torch.argmax(probabilities).item()
-    
-    quality = "High" if predicted_class == 1 else "Low"
-    confidence = probabilities[0][predicted_class].item()
-    
-    return jsonify({"quality": quality, "confidence": confidence})
+    try:
+        data = request.json
+        if not data or 'paragraph' not in data:
+            return jsonify({"error": "No paragraph provided"}), 400
+
+        paragraph = data['paragraph']
+        
+        inputs = tokenizer(paragraph, return_tensors="pt", truncation=True, padding=True)
+        with torch.no_grad():
+            outputs = model(**inputs)
+        
+        probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
+        predicted_class = torch.argmax(probabilities).item()
+        
+        quality = "High" if predicted_class == 1 else "Low"
+        confidence = float(probabilities[0][predicted_class].item())  # Convert to float for JSON serialization
+        
+        return jsonify({
+            "quality": quality,
+            "confidence": confidence,
+            "paragraph": paragraph
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
