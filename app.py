@@ -7,28 +7,13 @@ import torch
 app = Flask(__name__)
 CORS(app)
 
-# Global variables for model and tokenizer
-model = None
-tokenizer = None
-
-def load_model():
-    """Load model and tokenizer"""
-    global model, tokenizer
-    try:
-        model_name = "distilbert-base-uncased-finetuned-sst-2-english"
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForSequenceClassification.from_pretrained(model_name)
-        # Ensure model is in evaluation mode
-        model.eval()
-        return True
-    except Exception as e:
-        print(f"Error loading model: {e}")
-        return False
-
-@app.before_first_request
-def initialize():
-    """Initialize model before first request"""
-    load_model()
+# Load model and tokenizer at startup
+print("Loading model and tokenizer...")
+model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSequenceClassification.from_pretrained(model_name)
+model.eval()  # Set model to evaluation mode
+print("Model and tokenizer loaded successfully")
 
 @app.route('/')
 def home():
@@ -36,13 +21,6 @@ def home():
 
 @app.route('/classify', methods=['POST'])
 def classify_paragraph():
-    global model, tokenizer
-    
-    # Check if model is loaded
-    if model is None or tokenizer is None:
-        if not load_model():
-            return jsonify({"error": "Model not initialized"}), 500
-
     try:
         # Get and validate input
         data = request.get_json()
@@ -52,11 +30,13 @@ def classify_paragraph():
         paragraph = data['paragraph']
         
         # Tokenize and prepare input
-        inputs = tokenizer(paragraph, 
-                         return_tensors="pt", 
-                         truncation=True, 
-                         padding=True, 
-                         max_length=512)
+        inputs = tokenizer(
+            paragraph, 
+            return_tensors="pt", 
+            truncation=True, 
+            padding=True, 
+            max_length=512
+        )
         
         # Make prediction
         with torch.no_grad():
@@ -75,11 +55,9 @@ def classify_paragraph():
         })
 
     except Exception as e:
-        print(f"Error during classification: {e}")
+        print(f"Error during classification: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # Use the port provided by Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
-    
