@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 import torch
 import numpy as np
-from paragraph_quality import ParagraphFeatures, ParagraphQualityClassifier, load_model_artifacts
+from paragraph_quality import ParagraphFeatures, load_model_artifacts
 
 app = Flask(__name__, static_folder='.')
 CORS(app)
@@ -11,26 +11,35 @@ CORS(app)
 # Model paths
 MODEL_DIR = "model_artifacts"
 
-# Load model and tokenizer at startup
-print("Loading model and tokenizer...")
-try:
-    model, tokenizer = load_model_artifacts(MODEL_DIR)
-    model.eval()  # Set model to evaluation mode
-    print("Model and tokenizer loaded successfully")
-except Exception as e:
-    print(f"Error loading model: {str(e)}")
-    print("Using default model as fallback...")
-    # If not found, will create a temp model just to make the app work
-    # This will be replaced when we run the training script
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
-    model_name = "distilbert-base-uncased-finetuned-sst-2-english"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
-    model.eval()
+# Global variables for lazy loading
+model = None
+tokenizer = None
 
-# Map to store device for model
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model.to(device)
+def load_model():
+    global model, tokenizer
+    
+    # Only load if not already loaded
+    if model is None:
+        print("Loading model and tokenizer...")
+        try:
+            # Enable garbage collection for better memory management
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            
+            model, tokenizer = load_model_artifacts(MODEL_DIR)
+            model.eval()  # Set model to evaluation mode
+            print("Model and tokenizer loaded successfully")
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            print("Using default model as fallback...")
+            # If not found, will create a temp model just to make the app work
+            # This will be replaced when we run the training script
+            from transformers import AutoTokenizer, AutoModelForSequenceClassification
+            model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = AutoModelForSequenceClassification.from_pretrained(model_name)
+            model.eval()
+    
+    return model, tokenizer
 
 @app.route('/')
 def home():
@@ -59,6 +68,13 @@ def classify_paragraph():
             "passive_voice_count": int(features.get_passive_voice_count()),
             "punctuation_ratio": float(features.get_punctuation_ratio())
         }
+        
+        # Lazy load model only when needed
+        model, tokenizer = load_model()
+        
+        # Map to store device for model
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model.to(device)
         
         # Prepare model inputs
         encoding = tokenizer.encode_plus(
@@ -94,6 +110,10 @@ def classify_paragraph():
                 predicted_class = torch.argmax(probabilities).item()
                 confidence = float(probabilities[0][predicted_class].item())
                 quality = "High" if predicted_class == 1 else "Low"
+                
+        # Unload model from GPU if applicable
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         
         # Get improvement suggestions
         suggestions = generate_improvement_suggestions(paragraph, feature_values, quality)

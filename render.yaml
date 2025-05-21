@@ -2,15 +2,18 @@ services:
   - type: web
     name: paragraph-quality-analyzer
     env: python
-    plan: starter
+    plan: starter plus
     buildCommand: pip install -r requirements.txt && python -m spacy download en_core_web_sm
-    startCommand: gunicorn app:app --workers=1 --timeout 120
+    startCommand: gunicorn app:app --workers=1 --timeout 180 --max-requests 5 --max-requests-jitter 2 --preload
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: MAX_UPLOAD_SIZE
         value: 10M
+      - key: TRANSFORMERS_OFFLINE
+        value: "1"
     scaling:
       minInstances: 1
       maxInstances: 1
       targetMemoryPercent: 80
+      targetCPUPercent: 70
