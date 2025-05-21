@@ -1,9 +1,16 @@
 services:
   - type: web
-    name: paragraph-classifier
+    name: paragraph-quality-analyzer
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    plan: starter
+    buildCommand: pip install -r requirements.txt && python -m spacy download en_core_web_sm
+    startCommand: gunicorn app:app --workers=1 --timeout 120
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.0
+        value: 3.11.0
+      - key: MAX_UPLOAD_SIZE
+        value: 10M
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+      targetMemoryPercent: 80
