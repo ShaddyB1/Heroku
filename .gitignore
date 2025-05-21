@@ -9,3 +9,23 @@ venv/
 venv/
 *.pth
 *.dylib
+
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.so
+.Python
+.cache
+
+# Model artifacts
+model_artifacts/
+best_model.pt
+*.pt
